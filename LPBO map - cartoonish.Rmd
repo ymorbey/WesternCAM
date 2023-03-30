@@ -13,6 +13,12 @@ library(sf)
 library(rnaturalearth)
 library(dplyr)
 library(ggrepel)
+library(maps) # for filling in details
+library(spatstat) # for making bounding box
+library(maptools)
+
+#remotes::install_github("ropensci/rnaturalearthhires")
+library(rnaturalearthhires)
 
 # set the ggplot theme to a lighter version
 theme_set(theme_light())
@@ -31,6 +37,7 @@ class(world)
 
 # loading the map for the first time
 world %>% ggplot() + geom_sf()
+
 ```
 
 ```{r}
@@ -55,31 +62,9 @@ ggplot(data = world) +
     coord_sf(xlim = c(-89.6, -65.0), ylim = c(40.0, 60.0), expand = FALSE)
 ```
 
-
-
-```{r}
-# zooming on the SE Asia region
-world %>% 
-  ggplot() +
-  geom_sf(color="black", fill = ifelse(world$subregion == "Northern America","green","red")) +
-  coord_sf(xlim = c(-89.6, -65.0), 
-           ylim = c(40.0, 60.0), expand = FALSE)
-```
-
+## Great Lakes
 
 ```{r}
-# filling in the details on the map
-# loading maps package
-library(maps)
-
-```
-
-
-```{r}
-lakeerie <- read.csv("lakeerie.csv")
-
-#remotes::install_github("ropensci/rnaturalearthhires")
-library(rnaturalearthhires)
 
 world <- rnaturalearth::ne_countries(scale = "large",
                                      returnclass = "sf")
@@ -123,11 +108,15 @@ bigmap <- ggplot() +
         panel.grid.major = element_blank(),
         panel.background = element_rect(fill = "#98B2CD"))
 
+# Add a label for Lake Erie
 bigmap +
-  geom_label(data=lakeerie, aes(x=x, y=y, label=location), colour="black")  
+  geom_label(aes(x=-81.337634, y=42.065243, label="Lake Erie"), colour="black")  
 
-#lake erie: 42.065243	-81.337634
+
 ```
+
+## Great Lakes refined
+
 ```{r}
 bigmap2 <- ggplot() +
   geom_sf(data = n_america,
@@ -157,8 +146,6 @@ bigmap2 <- ggplot() +
         panel.background = element_rect(fill = "#D6D6D6"))
 
 #make bounding box for map that outlines LP
-library(spatstat)
-library(maptools)
 
 crs <- "+proj=longlat +datum=WGS84 +no_defs"
 window <- as(spatstat.geom::as.owin(c(-80.6,-80.0,42.45,42.70)), "SpatialPolygons") 
@@ -169,10 +156,25 @@ bigmap3 <- bigmap2 +
                aes(x = long, y = lat, group = group),
                fill = "transparent", color = "black") +
   theme(axis.text = element_text(size=12))
+
+bigmap3
+
 ```
 
+## Saving
+
+Use this code to save the file offline or save as *.rda for loading later without having to reconstruct the map from scratch.
+
 ```{r}
-ggsave(filename="NAmap11Mar2022_v2.pdf", plot=bigmap3, width=8, height=4, unit="in")
+
+ggsave(filename="NAmap30Mar2023.pdf", plot=bigmap3, width=8, height=4, unit="in")
+
+save(bigmap3, file="./bigmap3.rda")
+
+# load a previously saved *.rda
+
+load("./bigmap3.rda")
+
 ```
 
 ```{r}
