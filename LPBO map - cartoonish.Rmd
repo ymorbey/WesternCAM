@@ -1,0 +1,225 @@
+---
+title: "Map Long Point Ontario"
+author: "Jessica Deakin"
+date: "10/03/2022"
+output: html_document
+---
+
+# loading the packages
+```{r}
+library(ggplot2)
+library(ggspatial)
+library(sf)
+library(rnaturalearth)
+library(dplyr)
+library(ggrepel)
+
+# set the ggplot theme to a lighter version
+theme_set(theme_light())
+```
+
+```{r}
+#loading the goespatial data for the boundaries of the countries
+# using the rnaturalearth package
+world <- ne_countries(continent='north america', returnclass = "sf")
+
+# listing the column names
+names(world)
+
+# listing the data class
+class(world)
+
+# loading the map for the first time
+world %>% ggplot() + geom_sf()
+```
+
+```{r}
+# playing with aesthetics
+world %>% ggplot() + 
+  geom_sf(color = "black", fill = "yellow") 
+
+# playing with aesthetics
+world %>% ggplot() + 
+  geom_sf(color = "black", aes(fill = gdp_md_est))
+
+# adding labels
+world %>% ggplot() + 
+  geom_sf(aes(fill=continent), color="black") +
+  geom_sf_label(aes(label=continent))
+```
+
+```{r}
+# zooming in 
+ggplot(data = world) +
+    geom_sf() +
+    coord_sf(xlim = c(-89.6, -65.0), ylim = c(40.0, 60.0), expand = FALSE)
+```
+
+
+
+```{r}
+# zooming on the SE Asia region
+world %>% 
+  ggplot() +
+  geom_sf(color="black", fill = ifelse(world$subregion == "Northern America","green","red")) +
+  coord_sf(xlim = c(-89.6, -65.0), 
+           ylim = c(40.0, 60.0), expand = FALSE)
+```
+
+
+```{r}
+# filling in the details on the map
+# loading maps package
+library(maps)
+
+```
+
+
+```{r}
+lakeerie <- read.csv("lakeerie.csv")
+
+#remotes::install_github("ropensci/rnaturalearthhires")
+library(rnaturalearthhires)
+
+world <- rnaturalearth::ne_countries(scale = "large",
+                                     returnclass = "sf")
+
+n_america <- world %>% filter(adm0_a3=="CAN"|adm0_a3=="USA")
+
+lakes <- rnaturalearth::ne_download(scale = "large", 
+                     type = 'lakes', 
+                     category = 'physical') %>% 
+      sf::st_as_sf(lakes110, crs = 4269)
+
+lakes_m <- rnaturalearth::ne_download(scale = "medium", 
+                     type = 'lakes', 
+                     category = 'physical') %>% 
+      sf::st_as_sf(lakes110, crs = 4269)
+
+bigmap <- ggplot() +
+  geom_sf(data = n_america,
+          mapping = aes(geometry = geometry),
+          color = "honeydew3",
+          fill = "#DADDB4")  +
+  geom_sf(data = lakes_m,
+          mapping = aes(geometry = geometry),
+        color = "honeydew3",
+        fill = "#98B2CD")  +
+  coord_sf(xlim = c(-95.0, -65.0), 
+           ylim = c(35.0, 55.0), expand = TRUE) +
+  ggspatial::annotation_scale(location = "br", 
+                   width_hint = 0.25, 
+                   text_cex = 1) +
+  annotation_north_arrow(location = "br", 
+                         which_north = "true", 
+                         pad_x = unit(0.15, "in"),
+                         pad_y = unit(0.3, "in"),
+                         style = north_arrow_fancy_orienteering) +
+  labs(x = "Longitude",
+       y = "Latitude") +  
+  theme_bw() +
+  theme(axis.text.x = element_text(size = 10, color = "black"),
+        axis.text.y = element_text(size = 10, color = "black"),
+        panel.grid.major = element_blank(),
+        panel.background = element_rect(fill = "#98B2CD"))
+
+bigmap +
+  geom_label(data=lakeerie, aes(x=x, y=y, label=location), colour="black")  
+
+#lake erie: 42.065243	-81.337634
+```
+```{r}
+bigmap2 <- ggplot() +
+  geom_sf(data = n_america,
+          mapping = aes(geometry = geometry),
+          color = "#AAAAAA",
+          fill = "white")  +
+  geom_sf(data = lakes_m,
+          mapping = aes(geometry = geometry),
+        color = "#AAAAAA",
+        fill = "#D6D6D6")  +
+  coord_sf(xlim = c(-94.0, -62.0), 
+           ylim = c(40.0, 53), expand = TRUE) +
+  #ggspatial::annotation_scale(location = "br", 
+  #                 width_hint = 0.25, 
+  #                 text_cex = 1) +
+  annotation_north_arrow(location = "br", 
+                         which_north = "true", 
+                         pad_x = unit(0.15, "in"),
+                         pad_y = unit(0.3, "in"),
+                         style = north_arrow_fancy_orienteering) +
+  labs(x = "Longitude",
+       y = "Latitude") +  
+  theme_bw() +
+  theme(axis.text.x = element_text(size = 10, color = "black"),
+        axis.text.y = element_text(size = 10, color = "black"),
+        panel.grid.major = element_blank(),
+        panel.background = element_rect(fill = "#D6D6D6"))
+
+#make bounding box for map that outlines LP
+library(spatstat)
+library(maptools)
+
+crs <- "+proj=longlat +datum=WGS84 +no_defs"
+window <- as(spatstat.geom::as.owin(c(-80.6,-80.0,42.45,42.70)), "SpatialPolygons") 
+raster::projection(window) <- crs
+
+bigmap3 <- bigmap2 +
+  geom_polygon(data = broom::tidy(window),
+               aes(x = long, y = lat, group = group),
+               fill = "transparent", color = "black") +
+  theme(axis.text = element_text(size=12))
+```
+
+```{r}
+ggsave(filename="NAmap11Mar2022_v2.pdf", plot=bigmap3, width=8, height=4, unit="in")
+```
+
+```{r}
+library(ggmap)
+
+# Long Point Lat 42.578817 and Lon is -80.431031 
+ph_basemap2  <- get_stamenmap(bbox=c(left = -80.60, bottom = 42.45, right = -80.0, top = 42.70), 
+                      zoom=13,
+                      maptype = 'toner-background', 
+                      source = 'stamen')
+
+ggmap(ph_basemap2) 
+
+# change opacity of basemap
+mapatt <- attributes(ph_basemap2)
+map_transparent <- matrix(adjustcolor(ph_basemap2, alpha.f = 0.2), nrow = nrow(ph_basemap2))
+attributes(map_transparent) <- mapatt
+
+longpoint<-ggmap(map_transparent) + theme(panel.grid=element_blank()) + 
+  ggsn::scalebar(x.min = -80.3, x.max = -80.05, y.min = 42.48, y.max = 42.55, 
+                 transform = TRUE, 
+                 model = 'WGS84', 
+                 dist=5, dist_unit="km", 
+                 st.dist=0.12, #number between 0 and 1 to indicate the distance between the scale bar and the scale bar's text, as a proportion of the y-axis
+                 height=0.1 #number between 0 and 1 to indicate the scale bar's height, as a proportion of the y axis
+                 ) +
+  #geom_segment(aes(x = -80.398483, y = 42.55, xend = -80.398483, yend = 42.582932),
+  #             arrow = arrow()) + #oldcut
+  #geom_segment(aes(x = -80.287479, y = 42.53, xend = -80.287479, yend = 42.560895),
+  #             arrow = arrow()) + #breakwater
+  #geom_segment(aes(x = -80.049503, y = 42.578, xend = -80.049503, yend = 42.548693),
+  #             arrow = arrow()) + #tip
+  #geom_text(x=-80.287479, y=42.522, label="Breakwater", size=5) +
+  #geom_text(x=-80.398483, y=42.54, label="Old Cut", size=5) +
+  #geom_text(x=-80.049503, y=42.587, label="Tip", size=5) +
+  geom_point(x = -80.398483, y = 42.582932, size=1) +
+  geom_point(x = -80.287479, y = 42.560895, size=1) +
+  geom_point(x = -80.049503, y = 42.548693, size=1) +
+  theme(
+    #panel.border = element_text(colour="black", size=1),
+    axis.ticks = element_blank(),
+    axis.title = element_blank(), 
+    axis.text = element_blank(),
+    text = element_text(size=12))
+longpoint
+```
+
+```{r}
+#ggsave(filename="longpointmap11Mar2022.pdf", plot=longpoint, width=7, height=3, unit="in")
+```
